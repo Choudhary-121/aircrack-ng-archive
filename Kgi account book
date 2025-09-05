@@ -1,0 +1,248 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(KgiAccountBookApp());
+}
+
+class KgiAccountBookApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'KGI Account Book',
+      theme: ThemeData(primarySwatch: Colors.green),
+      home: CustomerListScreen(),
+    );
+  }
+}
+
+// Customer model
+class Customer {
+  String name;
+  String phone;
+  List<Transaction> transactions = [];
+
+  Customer(this.name, this.phone);
+
+  double get balance {
+    double bal = 0;
+    for (var t in transactions) {
+      bal += t.type == "Credit" ? t.amount : -t.amount;
+    }
+    return bal;
+  }
+}
+
+class Transaction {
+  double amount;
+  String type; // "Credit" or "Debit"
+  DateTime date;
+
+  Transaction(this.amount, this.type, this.date);
+}
+
+// Customer List Screen
+class CustomerListScreen extends StatefulWidget {
+  @override
+  _CustomerListScreenState createState() => _CustomerListScreenState();
+}
+
+class _CustomerListScreenState extends State<CustomerListScreen> {
+  List<Customer> customers = [];
+
+  void _addCustomer(String name, String phone) {
+    setState(() {
+      customers.add(Customer(name, phone));
+    });
+  }
+
+  void _showAddCustomerDialog() {
+    String name = "";
+    String phone = "";
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Add Customer"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: InputDecoration(labelText: "Name"),
+              onChanged: (val) => name = val,
+            ),
+            TextField(
+              decoration: InputDecoration(labelText: "Phone"),
+              onChanged: (val) => phone = val,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: Text("Cancel"),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ElevatedButton(
+            child: Text("Add"),
+            onPressed: () {
+              if (name.isNotEmpty && phone.isNotEmpty) {
+                _addCustomer(name, phone);
+                Navigator.pop(ctx);
+              }
+            },
+          )
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("KGI Account Book")),
+      body: ListView.builder(
+        itemCount: customers.length,
+        itemBuilder: (ctx, i) {
+          return ListTile(
+            title: Text(customers[i].name),
+            subtitle: Text("Phone: ${customers[i].phone}"),
+            trailing: Text(
+              "₹${customers[i].balance.toStringAsFixed(2)}",
+              style: TextStyle(
+                color: customers[i].balance >= 0 ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TransactionScreen(customer: customers[i]),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.person_add),
+        onPressed: _showAddCustomerDialog,
+      ),
+    );
+  }
+}
+
+// Transaction Screen
+class TransactionScreen extends StatefulWidget {
+  final Customer customer;
+
+  TransactionScreen({required this.customer});
+
+  @override
+  _TransactionScreenState createState() => _TransactionScreenState();
+}
+
+class _TransactionScreenState extends State<TransactionScreen> {
+  void _addTransaction(double amount, String type) {
+    setState(() {
+      widget.customer.transactions.add(Transaction(amount, type, DateTime.now()));
+    });
+  }
+
+  void _showTransactionDialog(String type) {
+    double amount = 0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Add $type"),
+        content: TextField(
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: "Amount"),
+          onChanged: (val) => amount = double.tryParse(val) ?? 0,
+        ),
+        actions: [
+          TextButton(
+            child: Text("Cancel"),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ElevatedButton(
+            child: Text("Add"),
+            onPressed: () {
+              if (amount > 0) {
+                _addTransaction(amount, type);
+                Navigator.pop(ctx);
+              }
+            },
+          )
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.customer.name),
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            color: Colors.grey[200],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Balance:", style: TextStyle(fontSize: 18)),
+                Text(
+                  "₹${widget.customer.balance.toStringAsFixed(2)}",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: widget.customer.balance >= 0
+                        ? Colors.green
+                        : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: widget.customer.transactions.length,
+              itemBuilder: (ctx, i) {
+                var t = widget.customer.transactions[i];
+                return ListTile(
+                  title: Text("${t.type} ₹${t.amount}"),
+                  subtitle: Text("${t.date.toLocal()}".split(' ')[0]),
+                  trailing: Icon(
+                    t.type == "Credit" ? Icons.arrow_downward : Icons.arrow_upward,
+                    color: t.type == "Credit" ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+            ),
+          )
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            label: Text("Credit"),
+            icon: Icon(Icons.add),
+            backgroundColor: Colors.green,
+            onPressed: () => _showTransactionDialog("Credit"),
+          ),
+          SizedBox(height: 10),
+          FloatingActionButton.extended(
+            label: Text("Debit"),
+            icon: Icon(Icons.remove),
+            backgroundColor: Colors.red,
+            onPressed: () => _showTransactionDialog("Debit"),
+          ),
+        ],
+      ),
+    );
+  }
+}
